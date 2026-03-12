@@ -19,12 +19,12 @@
         .btn-delete { background: #dc3545; }
 
         /* COLORES CÍCLICOS PARA LAS TAREAS */
-        .gantt .bar-color-1 .bar { fill: #2ecc71; } /* Verde */
-        .gantt .bar-color-2 .bar { fill: #ff9ff3; } /* Rosa */
-        .gantt .bar-color-3 .bar { fill: #a29bfe; } /* Lila */
-        .gantt .bar-color-4 .bar { fill: #81ecec; } /* Celeste */
-        .gantt .bar-color-5 .bar { fill: #ffbe76; } /* Naranja */
-        .gantt .bar-color-6 .bar { fill: #d4a373; } /* Marroncito claro */
+        .gantt .bar-color1 .bar { fill: #2ecc71 !important; } /* Verde */
+        .gantt .bar-color2 .bar { fill: #ff9ff3 !important; } /* Rosa */
+        .gantt .bar-color3 .bar { fill: #a29bfe !important; } /* Lila */
+        .gantt .bar-color4 .bar { fill: #81ecec !important; } /* Celeste */
+        .gantt .bar-color5 .bar { fill: #ffbe76 !important; } /* Naranja */
+        .gantt .bar-color6 .bar { fill: #d4a373 !important; } /* Marrón */
     </style>
 </head>
 <body>
@@ -77,30 +77,33 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     let gantt;
+    let currentTasksCount = 0; // Para llevar la cuenta
 
     db.ref("tasks").on("value", (snapshot) => {
         const data = snapshot.val();
-        const tasks = data ? Object.keys(data).map(k => ({
-            id: k,
-            name: data[k].name,
-            start: data[k].start,
-            end: data[k].end,
-            progress: data[k].progress || 0,
-            custom_class: data[k].priority // Aquí aplicamos el color
-        })) : [];
-
+        const tasks = data ? Object.keys(data).map(k => {
+            return {
+                id: k,
+                name: data[k].name,
+                start: data[k].start,
+                end: data[k].end,
+                progress: data[k].progress || 0,
+                custom_class: data[k].priority // Aquí debe decir "color1", "color2", etc.
+            };
+        }) : [];
+    
+        currentTasksCount = tasks.length;
+    
         if (tasks.length === 0) {
-            // Auto-carga de Marzo si está vacío
             const marzo = [
-                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "color-1" },
-                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "color-2" },
-                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "color-3" },
-                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "color-4" }
+                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "color1" },
+                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "color2" },
+                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "color3" },
+                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "color4" }
             ];
             marzo.forEach(t => db.ref("tasks").push({...t, progress: 0}));
             return;
         }
-
         renderGantt(tasks);
     });
 
@@ -109,7 +112,6 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
-                padding: 0, // <--- ESTA LÍNEA elimina el espacio extra al principio
                 on_date_change: (task, start, end) => {
                     db.ref("tasks/" + task.id).update({
                         start: start.toISOString().split('T')[0],
@@ -129,18 +131,16 @@
         const name = document.getElementById('taskName').value;
         if(!name) return;
     
-        // Calculamos el color basado en cuántas tareas ya hay (del 1 al 6)
-        const colorIndex = (tasks.length % 6) + 1;
-        const assignedClass = "color-" + colorIndex;
-    
+        // Calculamos el color: 1, 2, 3, 4, 5 o 6
+        const nextColorNum = (currentTasksCount % 6) + 1;
+        
         db.ref("tasks").push({
             name: name,
             start: document.getElementById('taskStart').value,
             end: document.getElementById('taskEnd').value,
-            priority: assignedClass, // Guardamos el nombre del color (color-1, color-2, etc)
+            priority: "color" + nextColorNum, // Guardamos "color1", "color2"...
             progress: 0
         });
-        
         document.getElementById('taskName').value = "";
     }
 
@@ -150,4 +150,5 @@
 </script>
 </body>
 </html>
+
 
