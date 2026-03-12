@@ -66,6 +66,14 @@
     let tasks = [];
     let gantt;
 
+    // Tareas de Marzo para que no se pierdan
+    const iniciales = [
+        { id: "m1", name: "Semana 1: Definir misión y lugar", start: "2026-03-01", end: "2026-03-07", progress: 100, custom_class: "important" },
+        { id: "m2", name: "Semana 2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", progress: 50, custom_class: "critical" },
+        { id: "m3", name: "Semana 3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", progress: 0, custom_class: "important" },
+        { id: "m4", name: "Semana 4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", progress: 0, custom_class: "important" }
+    ];
+
     // 2. ESCUCHAR CAMBIOS EN TIEMPO REAL
     db.ref("tasks").on("value", (snapshot) => {
         const data = snapshot.val();
@@ -121,4 +129,5 @@
 
 </body>
 </html>
+
 
