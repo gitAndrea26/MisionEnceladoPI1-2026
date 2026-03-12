@@ -29,6 +29,10 @@
         /* Por si acaso, también pintamos el progreso para que no se vea raro */
         .bar-color1 .bar-progress { fill: #27ae60 !important; }
         .bar-color2 .bar-progress { fill: #f368e0 !important; }
+
+        .gantt .bar-wrapper {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -108,6 +112,12 @@
                 language: 'es',
                 view_mode: 'Week',
                 padding: 0,
+                // --- NUEVA FUNCIÓN: ELIMINAR AL HACER CLIC ---
+                on_click: (task) => {
+                    if(confirm(`¿Deseas eliminar la tarea: "${task.name}"?`)) {
+                        db.ref("tasks/" + task.id).remove();
+                    }
+                },
                 on_date_change: (task, start, end) => {
                     db.ref("tasks/" + task.id).update({
                         start: start.toISOString().split('T')[0],
@@ -122,19 +132,13 @@
             gantt.refresh(tasks);
         }
     
-        // --- EL TRUCO MAESTRO: Pintado manual post-render ---
+        // Mantener el parche de colores que ya funciona
         setTimeout(() => {
             const colores = {
-                'color1': '#2ecc71', // Verde
-                'color2': '#ff9ff3', // Rosa
-                'color3': '#a29bfe', // Lila
-                'color4': '#81ecec', // Celeste
-                'color5': '#ffbe76', // Naranja
-                'color6': '#d4a373'  // Marrón
+                'color1': '#2ecc71', 'color2': '#ff9ff3', 'color3': '#a29bfe',
+                'color4': '#81ecec', 'color5': '#ffbe76', 'color6': '#d4a373'
             };
-    
             tasks.forEach(t => {
-                // Buscamos el elemento de la barra por el ID de la tarea
                 const barWrapper = document.querySelector(`[data-id="${t.id}"]`);
                 if (barWrapper) {
                     const rect = barWrapper.querySelector('.bar');
@@ -143,7 +147,7 @@
                     }
                 }
             });
-        }, 100); // Esperamos 100ms a que el SVG se dibuje
+        }, 100);
     }
 
     function addTask() {
@@ -172,6 +176,7 @@
 </script>
 </body>
 </html>
+
 
 
 
