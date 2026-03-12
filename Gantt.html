@@ -14,17 +14,21 @@
         .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; align-items: flex-end; }
         .grupo-input { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 12px; font-weight: bold; color: #444; }
-        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        input, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         .btn-delete { background: #dc3545; }
-
-        /* COLORES CÍCLICOS PARA LAS TAREAS */
-        .gantt .bar-color1 .bar { fill: #2ecc71 !important; } /* Verde */
-        .gantt .bar-color2 .bar { fill: #ff9ff3 !important; } /* Rosa */
-        .gantt .bar-color3 .bar { fill: #a29bfe !important; } /* Lila */
-        .gantt .bar-color4 .bar { fill: #81ecec !important; } /* Celeste */
-        .gantt .bar-color5 .bar { fill: #ffbe76 !important; } /* Naranja */
-        .gantt .bar-color6 .bar { fill: #d4a373 !important; } /* Marrón */
+    
+        /* ESTO ES LO QUE IMPORTA: Atacamos el RECT dentro de la clase */
+        .bar-color1 .bar { fill: #2ecc71 !important; } /* Verde */
+        .bar-color2 .bar { fill: #ff9ff3 !important; } /* Rosa */
+        .bar-color3 .bar { fill: #a29bfe !important; } /* Lila */
+        .bar-color4 .bar { fill: #81ecec !important; } /* Celeste */
+        .bar-color5 .bar { fill: #ffbe76 !important; } /* Naranja */
+        .bar-color6 .bar { fill: #d4a373 !important; } /* Marrón */
+        
+        /* Por si acaso, también pintamos el progreso para que no se vea raro */
+        .bar-color1 .bar-progress { fill: #27ae60 !important; }
+        .bar-color2 .bar-progress { fill: #f368e0 !important; }
     </style>
 </head>
 <body>
@@ -144,6 +148,7 @@
 </script>
 </body>
 </html>
+
 
 
 
