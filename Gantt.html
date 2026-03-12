@@ -2,35 +2,38 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gantt Misión Encélado - PI1</title>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <title>Gantt Misión Encélado - Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 20px; }
-        .panel-control { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-        .grupo-input { display: flex; flex-direction: column; }
-        label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #34495e; }
-        input, select, button { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; }
-        button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #3498db; }
-        .peligro { background-color: #e74c3c; }
-        #gantt_div { width: 100%; min-height: 400px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; align-items: flex-end; }
+        .grupo-input { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 12px; font-weight: bold; color: #444; }
+        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn-delete { background: #dc3545; }
+
+        /* COLORES PERSONALIZADOS PARA LAS BARRAS */
+        .gantt .bar-Critica .bar { fill: #ff4d4d; }
+        .gantt .bar-Alta .bar { fill: #ffa500; }
+        .gantt .bar-Media .bar { fill: #2ecc71; }
+        .gantt .bar-Hito .bar { fill: #9b59b6; }
     </style>
 </head>
 <body>
 
-    <h2>🚀 Planificación Misión: Encélado</h2>
-
-    <div class="panel-control">
+<div class="container">
+    <h2>🚀 Gestión de Misión: Encélado</h2>
+    
+    <div class="controls">
         <div class="grupo-input">
-            <label>ID Tarea</label>
-            <input type="text" id="taskId" placeholder="Ej: M1">
-        </div>
-        <div class="grupo-input">
-            <label>Nombre</label>
-            <input type="text" id="taskName" placeholder="Ej: Definir CONOPS">
+            <label>Nombre Tarea</label>
+            <input type="text" id="taskName" placeholder="Ej: CONOPS">
         </div>
         <div class="grupo-input">
             <label>Inicio</label>
@@ -43,119 +46,97 @@
         <div class="grupo-input">
             <label>Prioridad</label>
             <select id="taskPriority">
+                <option value="Media">Media (Verde)</option>
                 <option value="Critica">Crítica (Rojo)</option>
                 <option value="Alta">Alta (Naranja)</option>
-                <option value="Media">Media (Verde)</option>
                 <option value="Hito">Hito (Morado)</option>
             </select>
         </div>
-        <div class="grupo-input">
-            <label>Margen (Días)</label>
-            <input type="number" id="taskSlack" value="0" min="0">
-        </div>
-        <button onclick="addTask()">Agregar / Actualizar</button>
-        <button class="peligro" onclick="borrarTodo()">Borrar Todo</button>
+        <button onclick="addTask()">+ Añadir</button>
+        <button class="btn-delete" onclick="clearAll()">Borrar Todo</button>
     </div>
 
-    <div id="gantt_div"></div>
+    <div id="gantt"></div>
+</div>
 
-    <script>
-        // 1. CONFIGURACIÓN DE FIREBASE
-        // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
-        const firebaseConfig = {
-            apiKey: "AIzaSyAclFQQrTB2vZpDRm0E_4i4ugBL-LcqTXo", 
-            authDomain: "gantt-pi1-2026.firebaseapp.com",
-            databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com", // Verifica este link en tu consola
-            projectId: "gantt-pi1-2026",
-            storageBucket: "gantt-pi1-2026.firebasestorage.app",
-            messagingSenderId: "1042831132980",
-            appId: "1:1042831132980:web:35a21138647f830837fd61"
-        };
+<script>
+    // 1. CONFIGURACIÓN DE FIREBASE
+    // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
+    const firebaseConfig = {
+        apiKey: "AIzaSyAclFQQrTB2vZpDRm0E_4i4ugBL-LcqTXo", 
+        authDomain: "gantt-pi1-2026.firebaseapp.com",
+        databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com", // Verifica este link en tu consola
+        projectId: "gantt-pi1-2026",
+        storageBucket: "gantt-pi1-2026.firebasestorage.app",
+        messagingSenderId: "1042831132980",
+        appId: "1:1042831132980:web:35a21138647f830837fd61"
+    };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let gantt;
 
-        let chartReady = false;
-        google.charts.load('current', {'packages':['gantt']});
-        google.charts.setOnLoadCallback(() => { chartReady = true; });
+    db.ref("tasks").on("value", (snapshot) => {
+        const data = snapshot.val();
+        const tasks = data ? Object.keys(data).map(k => ({
+            id: k,
+            name: data[k].name,
+            start: data[k].start,
+            end: data[k].end,
+            progress: data[k].progress || 0,
+            custom_class: data[k].priority // Aquí aplicamos el color
+        })) : [];
 
-        // Escuchar datos de Firebase
-        db.ref("tasks").on("value", (snapshot) => {
-            const data = snapshot.val();
-            const tareasArray = data ? Object.keys(data).map(k => ({...data[k], id: k})) : [];
-            
-            // Si la base está vacía, cargar marzo por defecto una sola vez
-            if (tareasArray.length === 0) {
-                const marzo = [
-                    { id: "M1", nombre: "S1: Definir misión y lugar", inicio: "2026-03-01", fin: "2026-03-07", prioridad: "Media", slack: 0 },
-                    { id: "M2", nombre: "S2: Necesidad y Metas", inicio: "2026-03-08", fin: "2026-03-14", prioridad: "Alta", slack: 0 },
-                    { id: "M3", nombre: "S3: Objetivos e Hipótesis", inicio: "2026-03-15", fin: "2026-03-21", prioridad: "Critica", slack: 0 },
-                    { id: "M4", nombre: "S4: Restricciones y CONOPS", inicio: "2026-03-22", fin: "2026-03-31", prioridad: "Critica", slack: 0 }
-                ];
-                marzo.forEach(t => db.ref("tasks/" + t.id).set(t));
-            } else {
-                if (chartReady) dibujarGrafico(tareasArray);
-            }
-        });
-
-        function addTask() {
-            const id = document.getElementById('taskId').value;
-            const nombre = document.getElementById('taskName').value;
-            if(!id || !nombre) return alert("Completa ID y Nombre");
-
-            db.ref("tasks/" + id).set({
-                nombre: nombre,
-                inicio: document.getElementById('taskStart').value,
-                fin: document.getElementById('taskEnd').value,
-                prioridad: document.getElementById('taskPriority').value,
-                slack: parseInt(document.getElementById('taskSlack').value) || 0
-            });
-            document.getElementById('taskId').value = '';
-            document.getElementById('taskName').value = '';
+        if (tasks.length === 0) {
+            // Auto-carga de Marzo si está vacío
+            const marzo = [
+                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "Media" },
+                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "Alta" },
+                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "Critica" },
+                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "Critica" }
+            ];
+            marzo.forEach(t => db.ref("tasks").push({...t, progress: 0}));
+            return;
         }
 
-        function borrarTodo() {
-            if(confirm("¿Seguro que quieres borrar todo?")) db.ref("tasks").remove();
-        }
+        renderGantt(tasks);
+    });
 
-        function dibujarGrafico(tareas) {
-            const data = new google.visualization.DataTable();
-            data.addColumn('string', 'Task ID');
-            data.addColumn('string', 'Task Name');
-            data.addColumn('string', 'Resource');
-            data.addColumn('date', 'Start Date');
-            data.addColumn('date', 'End Date');
-            data.addColumn('number', 'Duration');
-            data.addColumn('number', 'Percent Complete');
-            data.addColumn('string', 'Dependencies');
-
-            const rows = tareas.map(t => {
-                // Parseo de fechas seguro para evitar el error 'datefield'
-                const start = new Date(t.inicio.split('-')[0], t.inicio.split('-')[1]-1, t.inicio.split('-')[2]);
-                const endBase = new Date(t.fin.split('-')[0], t.fin.split('-')[1]-1, t.fin.split('-')[2]);
-                const endWithSlack = new Date(endBase.getTime() + (t.slack * 24 * 60 * 60 * 1000));
-
-                return [t.id, t.nombre, t.prioridad, start, endWithSlack, null, 0, null];
-            });
-
-            data.addRows(rows);
-
-            const options = {
-                height: 400,
-                gantt: {
-                    trackHeight: 30,
-                    palette: [
-                        { "color": "#ef553b", "dark": "#c0392b", "light": "#e74c3c" },
-                        { "color": "#ffa15a", "dark": "#e67e22", "light": "#f39c12" },
-                        { "color": "#00cc96", "dark": "#27ae60", "light": "#2ecc71" },
-                        { "color": "#ab63fa", "dark": "#8e44ad", "light": "#9b59b6" }
-                    ]
+    function renderGantt(tasks) {
+        if (!gantt) {
+            gantt = new Gantt("#gantt", tasks, {
+                language: 'es',
+                view_mode: 'Week',
+                on_date_change: (task, start, end) => {
+                    db.ref("tasks/" + task.id).update({
+                        start: start.toISOString().split('T')[0],
+                        end: end.toISOString().split('T')[0]
+                    });
+                },
+                on_progress_change: (task, progress) => {
+                    db.ref("tasks/" + task.id).update({ progress: progress });
                 }
-            };
-
-            const chart = new google.visualization.Gantt(document.getElementById('gantt_div'));
-            chart.draw(data, options);
+            });
+        } else {
+            gantt.refresh(tasks);
         }
-    </script>
+    }
+
+    function addTask() {
+        const name = document.getElementById('taskName').value;
+        if(!name) return;
+        db.ref("tasks").push({
+            name: name,
+            start: document.getElementById('taskStart').value,
+            end: document.getElementById('taskEnd').value,
+            priority: document.getElementById('taskPriority').value,
+            progress: 0
+        });
+    }
+
+    function clearAll() {
+        if(confirm("¿Borrar todo?")) db.ref("tasks").remove();
+    }
+</script>
 </body>
 </html>
