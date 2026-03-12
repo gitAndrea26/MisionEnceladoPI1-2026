@@ -16,7 +16,7 @@
         button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #3498db; }
         .peligro { background-color: #e74c3c; }
-        #gantt_div { width: 100%; height: 500px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #gantt_div { width: 100%; min-height: 400px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 10px; }
     </style>
 </head>
 <body>
@@ -60,120 +60,102 @@
     <div id="gantt_div"></div>
 
     <script>
-    // 1. CONFIGURACIÓN DE FIREBASE
-    // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
-    const firebaseConfig = {
-        apiKey: "AIzaSyAclFQQrTB2vZpDRm0E_4i4ugBL-LcqTXo", 
-        authDomain: "gantt-pi1-2026.firebaseapp.com",
-        databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com", // Verifica este link en tu consola
-        projectId: "gantt-pi1-2026",
-        storageBucket: "gantt-pi1-2026.firebasestorage.app",
-        messagingSenderId: "1042831132980",
-        appId: "1:1042831132980:web:35a21138647f830837fd61"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let chartReady = false;
-    google.charts.load('current', {'packages':['gantt']});
-    google.charts.setOnLoadCallback(() => { chartReady = true; });
-
-    // 2. TAREAS DE MARZO (Formateadas para el nuevo estilo)
-    const marzoTasks = [
-        { id: "M1", nombre: "Semana 1: Definir misión y lugar", inicio: "2026-03-01", fin: "2026-03-07", prioridad: "Media", slack: 0 },
-        { id: "M2", nombre: "Semana 2: Necesidad y Metas", inicio: "2026-03-08", fin: "2026-03-14", prioridad: "Alta", slack: 0 },
-        { id: "M3", nombre: "Semana 3: Objetivos e Hipótesis", inicio: "2026-03-15", fin: "2026-03-21", prioridad: "Critica", slack: 0 },
-        { id: "M4", nombre: "Semana 4: Restricciones y CONOPS", inicio: "2026-03-22", fin: "2026-03-31", prioridad: "Critica", slack: 2 }
-    ];
-
-    // 3. ESCUCHAR CAMBIOS Y CARGA INICIAL
-    db.ref("tasks").on("value", (snapshot) => {
-        const data = snapshot.val();
-        
-        if (!data) {
-            // Si la base está vacía, subimos las de marzo con el nuevo formato
-            marzoTasks.forEach(t => db.ref("tasks/" + t.id).set(t));
-            return;
-        }
-
-        const tareasArray = Object.keys(data).map(k => ({...data[k], id: k}));
-        if(chartReady) dibujarGrafico(tareasArray);
-    });
-
-    function addTask() {
-        const id = document.getElementById('taskId').value;
-        const nombre = document.getElementById('taskName').value;
-        if(!id || !nombre) return alert("Completa ID y Nombre");
-
-        db.ref("tasks/" + id).set({
-            nombre: nombre,
-            inicio: document.getElementById('taskStart').value,
-            fin: document.getElementById('taskEnd').value,
-            prioridad: document.getElementById('taskPriority').value,
-            slack: parseInt(document.getElementById('taskSlack').value) || 0
-        });
-        
-        // Limpiar campos
-        document.getElementById('taskId').value = "";
-        document.getElementById('taskName').value = "";
-    }
-
-    function borrarTodo() {
-        if(confirm("¿Borrar todo el cronograma?")) db.ref("tasks").remove();
-    }
-
-    function dibujarGrafico(tareas) {
-        if (tareas.length === 0) {
-            document.getElementById('gantt_div').innerHTML = "<p style='text-align:center; padding-top:200px;'>Sin tareas.</p>";
-            return;
-        }
-
-        const data = new google.visualization.DataTable();
-        data.addColumn('string', 'Task ID');
-        data.addColumn('string', 'Task Name');
-        data.addColumn('string', 'Resource');
-        data.addColumn('date', 'Start');
-        data.addColumn('date', 'End');
-        data.addColumn('number', 'Duration');
-        data.addColumn('number', 'Percent');
-        data.addColumn('string', 'Dependencies');
-
-        const filas = tareas.map(t => {
-            const fInicio = new Date(t.inicio + "T00:00:00");
-            const fFin = new Date(t.fin + "T00:00:00");
-            const fFinConMargen = new Date(fFin.getTime() + (t.slack * 24 * 60 * 60 * 1000));
-
-            return [
-                t.id, 
-                t.nombre + (t.slack > 0 ? ` (+${t.slack}d)` : ''), 
-                t.prioridad, 
-                fInicio, fFinConMargen, null, 0, null
-            ];
-        });
-
-        data.addRows(filas);
-
-        const options = {
-            height: 500,
-            gantt: {
-                trackHeight: 40,
-                palette: [
-                    { "color": "#ef553b", "dark": "#c0392b", "light": "#e74c3c" }, // Critica
-                    { "color": "#ffa15a", "dark": "#e67e22", "light": "#f39c12" }, // Alta
-                    { "color": "#00cc96", "dark": "#27ae60", "light": "#2ecc71" }, // Media
-                    { "color": "#ab63fa", "dark": "#8e44ad", "light": "#9b59b6" }  // Hito
-                ]
-            }
+        // 1. CONFIGURACIÓN DE FIREBASE
+        // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
+        const firebaseConfig = {
+            apiKey: "AIzaSyAclFQQrTB2vZpDRm0E_4i4ugBL-LcqTXo", 
+            authDomain: "gantt-pi1-2026.firebaseapp.com",
+            databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com", // Verifica este link en tu consola
+            projectId: "gantt-pi1-2026",
+            storageBucket: "gantt-pi1-2026.firebasestorage.app",
+            messagingSenderId: "1042831132980",
+            appId: "1:1042831132980:web:35a21138647f830837fd61"
         };
 
-        const chart = new google.visualization.Gantt(document.getElementById('gantt_div'));
-        chart.draw(data, options);
-    }
-</script>
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let chartReady = false;
+        google.charts.load('current', {'packages':['gantt']});
+        google.charts.setOnLoadCallback(() => { chartReady = true; });
+
+        // Escuchar datos de Firebase
+        db.ref("tasks").on("value", (snapshot) => {
+            const data = snapshot.val();
+            const tareasArray = data ? Object.keys(data).map(k => ({...data[k], id: k})) : [];
+            
+            // Si la base está vacía, cargar marzo por defecto una sola vez
+            if (tareasArray.length === 0) {
+                const marzo = [
+                    { id: "M1", nombre: "S1: Definir misión y lugar", inicio: "2026-03-01", fin: "2026-03-07", prioridad: "Media", slack: 0 },
+                    { id: "M2", nombre: "S2: Necesidad y Metas", inicio: "2026-03-08", fin: "2026-03-14", prioridad: "Alta", slack: 0 },
+                    { id: "M3", nombre: "S3: Objetivos e Hipótesis", inicio: "2026-03-15", fin: "2026-03-21", prioridad: "Critica", slack: 0 },
+                    { id: "M4", nombre: "S4: Restricciones y CONOPS", inicio: "2026-03-22", fin: "2026-03-31", prioridad: "Critica", slack: 0 }
+                ];
+                marzo.forEach(t => db.ref("tasks/" + t.id).set(t));
+            } else {
+                if (chartReady) dibujarGrafico(tareasArray);
+            }
+        });
+
+        function addTask() {
+            const id = document.getElementById('taskId').value;
+            const nombre = document.getElementById('taskName').value;
+            if(!id || !nombre) return alert("Completa ID y Nombre");
+
+            db.ref("tasks/" + id).set({
+                nombre: nombre,
+                inicio: document.getElementById('taskStart').value,
+                fin: document.getElementById('taskEnd').value,
+                prioridad: document.getElementById('taskPriority').value,
+                slack: parseInt(document.getElementById('taskSlack').value) || 0
+            });
+            document.getElementById('taskId').value = '';
+            document.getElementById('taskName').value = '';
+        }
+
+        function borrarTodo() {
+            if(confirm("¿Seguro que quieres borrar todo?")) db.ref("tasks").remove();
+        }
+
+        function dibujarGrafico(tareas) {
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Task ID');
+            data.addColumn('string', 'Task Name');
+            data.addColumn('string', 'Resource');
+            data.addColumn('date', 'Start Date');
+            data.addColumn('date', 'End Date');
+            data.addColumn('number', 'Duration');
+            data.addColumn('number', 'Percent Complete');
+            data.addColumn('string', 'Dependencies');
+
+            const rows = tareas.map(t => {
+                // Parseo de fechas seguro para evitar el error 'datefield'
+                const start = new Date(t.inicio.split('-')[0], t.inicio.split('-')[1]-1, t.inicio.split('-')[2]);
+                const endBase = new Date(t.fin.split('-')[0], t.fin.split('-')[1]-1, t.fin.split('-')[2]);
+                const endWithSlack = new Date(endBase.getTime() + (t.slack * 24 * 60 * 60 * 1000));
+
+                return [t.id, t.nombre, t.prioridad, start, endWithSlack, null, 0, null];
+            });
+
+            data.addRows(rows);
+
+            const options = {
+                height: 400,
+                gantt: {
+                    trackHeight: 30,
+                    palette: [
+                        { "color": "#ef553b", "dark": "#c0392b", "light": "#e74c3c" },
+                        { "color": "#ffa15a", "dark": "#e67e22", "light": "#f39c12" },
+                        { "color": "#00cc96", "dark": "#27ae60", "light": "#2ecc71" },
+                        { "color": "#ab63fa", "dark": "#8e44ad", "light": "#9b59b6" }
+                    ]
+                }
+            };
+
+            const chart = new google.visualization.Gantt(document.getElementById('gantt_div'));
+            chart.draw(data, options);
+        }
+    </script>
 </body>
 </html>
-</body>
-</html>
-
-
