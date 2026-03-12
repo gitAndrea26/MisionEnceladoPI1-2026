@@ -17,42 +17,20 @@
         input, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         .btn-delete { background: #dc3545; }
-    
-        /* ESTO ES LO QUE IMPORTA: Atacamos el RECT dentro de la clase */
-        .bar-color1 .bar { fill: #2ecc71 !important; } /* Verde */
-        .bar-color2 .bar { fill: #ff9ff3 !important; } /* Rosa */
-        .bar-color3 .bar { fill: #a29bfe !important; } /* Lila */
-        .bar-color4 .bar { fill: #81ecec !important; } /* Celeste */
-        .bar-color5 .bar { fill: #ffbe76 !important; } /* Naranja */
-        .bar-color6 .bar { fill: #d4a373 !important; } /* Marrón */
-        
-        /* Por si acaso, también pintamos el progreso para que no se vea raro */
-        .bar-color1 .bar-progress { fill: #27ae60 !important; }
-        .bar-color2 .bar-progress { fill: #f368e0 !important; }
 
-        .gantt .bar-wrapper {
-            cursor: pointer;
-        }
+        /* Estilo base de las barras */
+        .gantt .bar-wrapper { cursor: pointer; transform: translateY(5px); }
+        .gantt .grid-row { height: 55px !important; }
 
-        /* Forzamos que todas las filas tengan la misma altura */
-        .gantt .grid-row {
-            height: 55px !important;
-        }
-        
-        /* Alineamos la barra para que no quede pegada al techo de su fila */
-        .gantt .bar-wrapper {
-            transform: translateY(5px); /* Ajustá este número si la ves muy arriba o abajo */
-        }
-        
-        /* Espacio extra en el contenedor para que la primera no toque el borde */
-        .gantt-container {
-            padding-top: 5px;
-        }
+        /* Colores dinámicos con soporte para margen (Variable CSS --slack-perc) */
+        .bar-color1 .bar { fill: var(--color-principal, #2ecc71) !important; }
+        .bar-color2 .bar { fill: var(--color-principal, #ff9ff3) !important; }
+        .bar-color3 .bar { fill: var(--color-principal, #a29bfe) !important; }
+        .bar-color4 .bar { fill: var(--color-principal, #81ecec) !important; }
+        .bar-color5 .bar { fill: var(--color-principal, #ffbe76) !important; }
+        .bar-color6 .bar { fill: var(--color-principal, #d4a373) !important; }
 
-        /* Color para las barras de margen */
-        .bar-gris .bar { fill: #a0a0a0 !important; } 
-        .bar-gris .bar-progress { fill: #808080 !important; }
-        
+        /* El truco del degradado se aplica mediante JS directamente al rect */
     </style>
 </head>
 <body>
@@ -85,12 +63,10 @@
 </div>
 
 <script>
-    // 1. CONFIGURACIÓN DE FIREBASE
-    // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
     const firebaseConfig = {
         apiKey: "AIzaSyAclFQQrTB2vZpDRm0E_4i4ugBL-LcqTXo", 
         authDomain: "gantt-pi1-2026.firebaseapp.com",
-        databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com", // Verifica este link en tu consola
+        databaseURL: "https://gantt-pi1-2026-default-rtdb.firebaseio.com",
         projectId: "gantt-pi1-2026",
         storageBucket: "gantt-pi1-2026.firebasestorage.app",
         messagingSenderId: "1042831132980",
@@ -100,7 +76,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     let gantt;
-    let currentTasksCount = 0; // Para llevar la cuenta
+    let currentTasksCount = 0;
 
     db.ref("tasks").on("value", (snapshot) => {
         const data = snapshot.val();
@@ -111,7 +87,10 @@
                 start: data[k].start,
                 end: data[k].end,
                 progress: data[k].progress || 0,
-                custom_class: data[k].priority // Aquí debe decir "color1", "color2", etc.
+                custom_class: data[k].priority,
+                // Guardamos info extra para el renderizado
+                slack_days: data[k].slack_days || 0,
+                duration_days: data[k].duration_days || 1
             };
         }) : [];
     
@@ -119,10 +98,7 @@
     
         if (tasks.length === 0) {
             const marzo = [
-                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "color1" },
-                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "color2" },
-                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "color3" },
-                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "color4" }
+                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-09", duration_days: 7, slack_days: 2, priority: "color1" }
             ];
             marzo.forEach(t => db.ref("tasks").push({...t, progress: 0}));
             return;
@@ -135,43 +111,58 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
-                //padding: 0,
-                // --- NUEVA FUNCIÓN: ELIMINAR AL HACER CLIC ---
                 on_click: (task) => {
                     if(confirm(`¿Deseas eliminar la tarea: "${task.name}"?`)) {
                         db.ref("tasks/" + task.id).remove();
                     }
                 },
                 on_date_change: (task, start, end) => {
+                    // Si se arrastra, mantenemos la proporción de margen
                     db.ref("tasks/" + task.id).update({
                         start: start.toISOString().split('T')[0],
                         end: end.toISOString().split('T')[0]
                     });
-                },
-                on_progress_change: (task, progress) => {
-                    db.ref("tasks/" + task.id).update({ progress: progress });
                 }
             });
         } else {
             gantt.refresh(tasks);
         }
     
-        // Mantener el parche de colores que ya funciona
         setTimeout(() => {
             const colores = {
                 'color1': '#2ecc71', 'color2': '#ff9ff3', 'color3': '#a29bfe',
                 'color4': '#81ccec', 'color5': '#f2a146', 'color6': '#b38d68'
             };
+
             tasks.forEach(t => {
                 const barWrapper = document.querySelector(`[data-id="${t.id}"]`);
                 if (barWrapper) {
                     const rect = barWrapper.querySelector('.bar');
                     if (rect) {
-                        if (t.custom_class === "bar-gris") {
-                            rect.style.fill = "#a0a0a0"; // Color gris directo
-                        } else if (colores[t.custom_class]) {
-                            rect.style.fill = colores[t.custom_class];
+                        const totalDays = t.duration_days + t.slack_days;
+                        const splitPoint = (t.duration_days / totalDays) * 100;
+                        const colorBase = colores[t.custom_class] || '#007bff';
+                        
+                        // Aplicamos un degradado lineal para mostrar el margen en la misma barra
+                        rect.style.fill = `linear-gradient(90deg, ${colorBase} ${splitPoint}%, #a0a0a0 ${splitPoint}%)`;
+                        // Frappe usa SVG, el fill de arriba es para CSS normal, para SVG usamos:
+                        rect.setAttribute('style', `fill: url(#grad-${t.id});`);
+                        
+                        // Crear el gradiente SVG dinámicamente si no existe
+                        let svg = document.querySelector('svg.gantt');
+                        let defs = svg.querySelector('defs') || svg.insertAdjacentElement('afterbegin', document.createElementNS("http://www.w3.org/2000/svg", "defs"));
+                        
+                        let gradId = `grad-${t.id}`;
+                        let grad = document.getElementById(gradId);
+                        if(!grad) {
+                            grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+                            grad.setAttribute('id', gradId);
+                            defs.appendChild(grad);
                         }
+                        grad.innerHTML = `
+                            <stop offset="${splitPoint}%" stop-color="${colorBase}" />
+                            <stop offset="${splitPoint}%" stop-color="#a0a0a0" />
+                        `;
                     }
                 }
             });
@@ -182,42 +173,27 @@
         const name = document.getElementById('taskName').value;
         const startStr = document.getElementById('taskStart').value;
         const duration = parseInt(document.getElementById('taskDuration').value);
-        const slack = parseInt(document.getElementById('taskSlack').value);
+        const slack = parseInt(document.getElementById('taskSlack').value) || 0;
     
         if(!name || !startStr || isNaN(duration)) return alert("Completá los datos principales.");
     
-        // 1. Calculamos Fin de la Tarea Real
         const startDate = new Date(startStr + "T00:00:00");
         const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + duration);
-        const endStr = endDate.toISOString().split('T')[0];
-    
-        // Color basado en el contador actual
-        const nextColorNum = (currentTasksCount % 6) + 1;
+        // La duración total de la fila es Trabajo + Margen
+        endDate.setDate(startDate.getDate() + duration + slack);
         
-        // Guardamos Tarea Real
+        const endStr = endDate.toISOString().split('T')[0];
+        const nextColorNum = (currentTasksCount % 6) + 1;
+    
         db.ref("tasks").push({
             name: name,
             start: startStr,
             end: endStr,
+            duration_days: duration,
+            slack_days: slack,
             priority: "color" + nextColorNum, 
             progress: 0
         });
-    
-        // 2. Si hay margen, guardamos la barra gris inmediatamente después
-        if (slack > 0) {
-            const slackEndDate = new Date(endDate);
-            slackEndDate.setDate(endDate.getDate() + slack);
-            const slackEndStr = slackEndDate.toISOString().split('T')[0];
-    
-            db.ref("tasks").push({
-                name: `[Margen] ${name}`,
-                start: endStr, // Empieza donde termina la real
-                end: slackEndStr,
-                priority: "bar-gris", // Clase especial para el gris
-                progress: 0
-            });
-        }
     
         document.getElementById('taskName').value = ""; 
     }
@@ -228,16 +204,6 @@
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
 
 
 
