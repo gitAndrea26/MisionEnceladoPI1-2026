@@ -120,27 +120,31 @@
 
     function addTask() {
         const name = document.getElementById('taskName').value;
-        if(!name) return;
+        const start = document.getElementById('taskStart').value;
+        const end = document.getElementById('taskEnd').value;
     
-        // Calculamos el color: 1, 2, 3, 4, 5 o 6
+        if(!name || !start || !end) return alert("Por favor, completá todos los campos.");
+    
+        // El color se elige solo según cuántas tareas hay
         const nextColorNum = (currentTasksCount % 6) + 1;
         
         db.ref("tasks").push({
             name: name,
-            start: document.getElementById('taskStart').value,
-            end: document.getElementById('taskEnd').value,
-            priority: "color" + nextColorNum, // Guardamos "color1", "color2"...
+            start: start,
+            end: end,
+            priority: "color" + nextColorNum, 
             progress: 0
         });
-        document.getElementById('taskName').value = "";
+    
+        document.getElementById('taskName').value = ""; // Limpiamos el texto
     }
-
     function clearAll() {
         if(confirm("¿Borrar todo?")) db.ref("tasks").remove();
     }
 </script>
 </body>
 </html>
+
 
 
 
