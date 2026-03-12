@@ -126,7 +126,7 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
-                padding: 0,
+                //padding: 0,
                 // --- NUEVA FUNCIÓN: ELIMINAR AL HACER CLIC ---
                 on_click: (task) => {
                     if(confirm(`¿Deseas eliminar la tarea: "${task.name}"?`)) {
@@ -191,6 +191,7 @@
 </script>
 </body>
 </html>
+
 
 
 
