@@ -36,7 +36,7 @@
 
         /* Forzamos que todas las filas tengan la misma altura */
         .gantt .grid-row {
-            height: 60px !important;
+            height: 55px !important;
         }
         
         /* Alineamos la barra para que no quede pegada al techo de su fila */
@@ -48,6 +48,11 @@
         .gantt-container {
             padding-top: 5px;
         }
+
+        /* Color para las barras de margen */
+        .bar-gris .bar { fill: #a0a0a0 !important; } 
+        .bar-gris .bar-progress { fill: #808080 !important; }
+        
     </style>
 </head>
 <body>
@@ -65,8 +70,12 @@
             <input type="date" id="taskStart" value="2026-03-11">
         </div>
         <div class="grupo-input">
-            <label>Fin</label>
-            <input type="date" id="taskEnd" value="2026-03-18">
+            <label>Días Trabajo</label>
+            <input type="number" id="taskDuration" value="7" style="width: 70px;">
+        </div>
+        <div class="grupo-input">
+            <label>Días Margen</label>
+            <input type="number" id="taskSlack" value="2" style="width: 70px;">
         </div>
         <button onclick="addTask()">+ Añadir</button>
         <button class="btn-delete" onclick="clearAll()">Borrar Todo</button>
@@ -157,8 +166,12 @@
                 const barWrapper = document.querySelector(`[data-id="${t.id}"]`);
                 if (barWrapper) {
                     const rect = barWrapper.querySelector('.bar');
-                    if (rect && colores[t.custom_class]) {
-                        rect.style.fill = colores[t.custom_class];
+                    if (rect) {
+                        if (t.custom_class === "bar-gris") {
+                            rect.style.fill = "#a0a0a0"; // Color gris directo
+                        } else if (colores[t.custom_class]) {
+                            rect.style.fill = colores[t.custom_class];
+                        }
                     }
                 }
             });
@@ -167,30 +180,55 @@
 
     function addTask() {
         const name = document.getElementById('taskName').value;
-        const start = document.getElementById('taskStart').value;
-        const end = document.getElementById('taskEnd').value;
+        const startStr = document.getElementById('taskStart').value;
+        const duration = parseInt(document.getElementById('taskDuration').value);
+        const slack = parseInt(document.getElementById('taskSlack').value);
     
-        if(!name || !start || !end) return alert("Por favor, completá todos los campos.");
+        if(!name || !startStr || isNaN(duration)) return alert("Completá los datos principales.");
     
-        // El color se elige solo según cuántas tareas hay
+        // 1. Calculamos Fin de la Tarea Real
+        const startDate = new Date(startStr + "T00:00:00");
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + duration);
+        const endStr = endDate.toISOString().split('T')[0];
+    
+        // Color basado en el contador actual
         const nextColorNum = (currentTasksCount % 6) + 1;
         
+        // Guardamos Tarea Real
         db.ref("tasks").push({
             name: name,
-            start: start,
-            end: end,
+            start: startStr,
+            end: endStr,
             priority: "color" + nextColorNum, 
             progress: 0
         });
     
-        document.getElementById('taskName').value = ""; // Limpiamos el texto
+        // 2. Si hay margen, guardamos la barra gris inmediatamente después
+        if (slack > 0) {
+            const slackEndDate = new Date(endDate);
+            slackEndDate.setDate(endDate.getDate() + slack);
+            const slackEndStr = slackEndDate.toISOString().split('T')[0];
+    
+            db.ref("tasks").push({
+                name: `[Margen] ${name}`,
+                start: endStr, // Empieza donde termina la real
+                end: slackEndStr,
+                priority: "bar-gris", // Clase especial para el gris
+                progress: 0
+            });
+        }
+    
+        document.getElementById('taskName').value = ""; 
     }
+    
     function clearAll() {
         if(confirm("¿Borrar todo?")) db.ref("tasks").remove();
     }
 </script>
 </body>
 </html>
+
 
 
 
