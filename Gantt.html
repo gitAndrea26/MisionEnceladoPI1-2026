@@ -3,40 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <title>Gantt Misión Encélado - PI1</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eceff1; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
-        input, select, button { padding: 10px; border: 1px solid #cfd8dc; border-radius: 6px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        .gantt .bar-critical .bar { fill: #e53935; }
-        .gantt .bar-important .bar { fill: #1e88e5; }
-        .gantt .bar-margin .bar { fill: #fdd835; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 20px; }
+        .panel-control { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .grupo-input { display: flex; flex-direction: column; }
+        label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #34495e; }
+        input, select, button { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; }
+        button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #3498db; }
+        .peligro { background-color: #e74c3c; }
+        #gantt_div { width: 100%; height: 500px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>🚀 Cronograma: Misión Encélado (PI1)</h2>
-    <div class="controls">
-        <input type="text" id="task-name" placeholder="Nueva tarea...">
-        <input type="date" id="task-start" value="2026-03-11">
-        <input type="date" id="task-end" value="2026-03-18">
-        <select id="task-priority">
-            <option value="important">Normal</option>
-            <option value="critical">Crítica</option>
-            <option value="margin">Margen</option>
-        </select>
-        <button onclick="addTask()">+ Añadir</button>
-    </div>
-    <div id="gantt"></div>
-</div>
+    <h2>🚀 Planificación Misión: Encélado</h2>
 
-<script>
+    <div class="panel-control">
+        <div class="grupo-input">
+            <label>ID Tarea</label>
+            <input type="text" id="taskId" placeholder="Ej: M1">
+        </div>
+        <div class="grupo-input">
+            <label>Nombre</label>
+            <input type="text" id="taskName" placeholder="Ej: Definir CONOPS">
+        </div>
+        <div class="grupo-input">
+            <label>Inicio</label>
+            <input type="date" id="taskStart" value="2026-03-11">
+        </div>
+        <div class="grupo-input">
+            <label>Fin</label>
+            <input type="date" id="taskEnd" value="2026-03-18">
+        </div>
+        <div class="grupo-input">
+            <label>Prioridad</label>
+            <select id="taskPriority">
+                <option value="Critica">Crítica (Rojo)</option>
+                <option value="Alta">Alta (Naranja)</option>
+                <option value="Media">Media (Verde)</option>
+                <option value="Hito">Hito (Morado)</option>
+            </select>
+        </div>
+        <div class="grupo-input">
+            <label>Margen (Días)</label>
+            <input type="number" id="taskSlack" value="0" min="0">
+        </div>
+        <button onclick="addTask()">Agregar / Actualizar</button>
+        <button class="peligro" onclick="borrarTodo()">Borrar Todo</button>
+    </div>
+
+    <div id="gantt_div"></div>
+
+    <script>
     // 1. CONFIGURACIÓN DE FIREBASE
     // IMPORTANTE: Reemplaza estos valores con los que aparecen en la consola de Firebase - REEMPLAZADOS
     const firebaseConfig = {
@@ -51,53 +74,106 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    let tasks = [];
-    let gantt;
 
-    // Tareas de Marzo para que no se pierdan
-    const iniciales = [
-        { id: "m1", name: "Semana 1: Definir misión y lugar", start: "2026-03-01", end: "2026-03-07", progress: 100, custom_class: "important" },
-        { id: "m2", name: "Semana 2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", progress: 50, custom_class: "critical" },
-        { id: "m3", name: "Semana 3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", progress: 0, custom_class: "important" },
-        { id: "m4", name: "Semana 4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", progress: 0, custom_class: "important" }
+    let chartReady = false;
+    google.charts.load('current', {'packages':['gantt']});
+    google.charts.setOnLoadCallback(() => { chartReady = true; });
+
+    // 2. TAREAS DE MARZO (Formateadas para el nuevo estilo)
+    const marzoTasks = [
+        { id: "M1", nombre: "Semana 1: Definir misión y lugar", inicio: "2026-03-01", fin: "2026-03-07", prioridad: "Media", slack: 0 },
+        { id: "M2", nombre: "Semana 2: Necesidad y Metas", inicio: "2026-03-08", fin: "2026-03-14", prioridad: "Alta", slack: 0 },
+        { id: "M3", nombre: "Semana 3: Objetivos e Hipótesis", inicio: "2026-03-15", fin: "2026-03-21", prioridad: "Critica", slack: 0 },
+        { id: "M4", nombre: "Semana 4: Restricciones y CONOPS", inicio: "2026-03-22", fin: "2026-03-31", prioridad: "Critica", slack: 2 }
     ];
 
+    // 3. ESCUCHAR CAMBIOS Y CARGA INICIAL
     db.ref("tasks").on("value", (snapshot) => {
         const data = snapshot.val();
+        
         if (!data) {
-            iniciales.forEach(t => db.ref("tasks/" + t.id).set(t));
+            // Si la base está vacía, subimos las de marzo con el nuevo formato
+            marzoTasks.forEach(t => db.ref("tasks/" + t.id).set(t));
             return;
         }
-        tasks = Object.keys(data).map(k => ({...data[k], id: k}));
-        if (!gantt) {
-            gantt = new Gantt("#gantt", tasks, {
-                language: 'es', view_mode: 'Week',
-                on_date_change: (t, s, e) => updateDate(t.id, s, e),
-                on_progress_change: (t, p) => db.ref("tasks/"+t.id).update({progress: p})
-            });
-        } else { gantt.refresh(tasks); }
+
+        const tareasArray = Object.keys(data).map(k => ({...data[k], id: k}));
+        if(chartReady) dibujarGrafico(tareasArray);
     });
 
     function addTask() {
-        const n = document.getElementById('task-name').value;
-        if(!n) return;
-        const id = "task_" + Date.now();
+        const id = document.getElementById('taskId').value;
+        const nombre = document.getElementById('taskName').value;
+        if(!id || !nombre) return alert("Completa ID y Nombre");
+
         db.ref("tasks/" + id).set({
-            name: n, 
-            start: document.getElementById('task-start').value,
-            end: document.getElementById('task-end').value,
-            progress: 0, 
-            custom_class: document.getElementById('task-priority').value
+            nombre: nombre,
+            inicio: document.getElementById('taskStart').value,
+            fin: document.getElementById('taskEnd').value,
+            prioridad: document.getElementById('taskPriority').value,
+            slack: parseInt(document.getElementById('taskSlack').value) || 0
         });
+        
+        // Limpiar campos
+        document.getElementById('taskId').value = "";
+        document.getElementById('taskName').value = "";
     }
 
-    function updateDate(id, s, e) {
-        db.ref("tasks/" + id).update({
-            start: s.toISOString().split('T')[0],
-            end: e.toISOString().split('T')[0]
+    function borrarTodo() {
+        if(confirm("¿Borrar todo el cronograma?")) db.ref("tasks").remove();
+    }
+
+    function dibujarGrafico(tareas) {
+        if (tareas.length === 0) {
+            document.getElementById('gantt_div').innerHTML = "<p style='text-align:center; padding-top:200px;'>Sin tareas.</p>";
+            return;
+        }
+
+        const data = new google.visualization.DataTable();
+        data.addColumn('string', 'Task ID');
+        data.addColumn('string', 'Task Name');
+        data.addColumn('string', 'Resource');
+        data.addColumn('date', 'Start');
+        data.addColumn('date', 'End');
+        data.addColumn('number', 'Duration');
+        data.addColumn('number', 'Percent');
+        data.addColumn('string', 'Dependencies');
+
+        const filas = tareas.map(t => {
+            const fInicio = new Date(t.inicio + "T00:00:00");
+            const fFin = new Date(t.fin + "T00:00:00");
+            const fFinConMargen = new Date(fFin.getTime() + (t.slack * 24 * 60 * 60 * 1000));
+
+            return [
+                t.id, 
+                t.nombre + (t.slack > 0 ? ` (+${t.slack}d)` : ''), 
+                t.prioridad, 
+                fInicio, fFinConMargen, null, 0, null
+            ];
         });
+
+        data.addRows(filas);
+
+        const options = {
+            height: 500,
+            gantt: {
+                trackHeight: 40,
+                palette: [
+                    { "color": "#ef553b", "dark": "#c0392b", "light": "#e74c3c" }, // Critica
+                    { "color": "#ffa15a", "dark": "#e67e22", "light": "#f39c12" }, // Alta
+                    { "color": "#00cc96", "dark": "#27ae60", "light": "#2ecc71" }, // Media
+                    { "color": "#ab63fa", "dark": "#8e44ad", "light": "#9b59b6" }  // Hito
+                ]
+            }
+        };
+
+        const chart = new google.visualization.Gantt(document.getElementById('gantt_div'));
+        chart.draw(data, options);
     }
 </script>
 </body>
 </html>
+</body>
+</html>
+
 
