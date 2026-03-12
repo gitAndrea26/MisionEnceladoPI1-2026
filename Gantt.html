@@ -18,11 +18,13 @@
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         .btn-delete { background: #dc3545; }
 
-        /* COLORES PERSONALIZADOS PARA LAS BARRAS */
-        .gantt .bar-Critica .bar { fill: #ff4d4d; }
-        .gantt .bar-Alta .bar { fill: #ffa500; }
-        .gantt .bar-Media .bar { fill: #2ecc71; }
-        .gantt .bar-Hito .bar { fill: #9b59b6; }
+        /* COLORES CÍCLICOS PARA LAS TAREAS */
+        .gantt .bar-color-1 .bar { fill: #2ecc71; } /* Verde */
+        .gantt .bar-color-2 .bar { fill: #ff9ff3; } /* Rosa */
+        .gantt .bar-color-3 .bar { fill: #a29bfe; } /* Lila */
+        .gantt .bar-color-4 .bar { fill: #81ecec; } /* Celeste */
+        .gantt .bar-color-5 .bar { fill: #ffbe76; } /* Naranja */
+        .gantt .bar-color-6 .bar { fill: #d4a373; } /* Marroncito claro */
     </style>
 </head>
 <body>
@@ -90,10 +92,10 @@
         if (tasks.length === 0) {
             // Auto-carga de Marzo si está vacío
             const marzo = [
-                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "Media" },
-                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "Alta" },
-                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "Critica" },
-                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "Critica" }
+                { name: "S1: Definir misión", start: "2026-03-01", end: "2026-03-07", priority: "color-1" },
+                { name: "S2: Necesidad y Metas", start: "2026-03-08", end: "2026-03-14", priority: "color-2" },
+                { name: "S3: Objetivos e Hipótesis", start: "2026-03-15", end: "2026-03-21", priority: "color-3" },
+                { name: "S4: Restricciones y CONOPS", start: "2026-03-22", end: "2026-03-31", priority: "color-4" }
             ];
             marzo.forEach(t => db.ref("tasks").push({...t, progress: 0}));
             return;
@@ -107,6 +109,7 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
+                padding: 0, // <--- ESTA LÍNEA elimina el espacio extra al principio
                 on_date_change: (task, start, end) => {
                     db.ref("tasks/" + task.id).update({
                         start: start.toISOString().split('T')[0],
@@ -125,13 +128,20 @@
     function addTask() {
         const name = document.getElementById('taskName').value;
         if(!name) return;
+    
+        // Calculamos el color basado en cuántas tareas ya hay (del 1 al 6)
+        const colorIndex = (tasks.length % 6) + 1;
+        const assignedClass = "color-" + colorIndex;
+    
         db.ref("tasks").push({
             name: name,
             start: document.getElementById('taskStart').value,
             end: document.getElementById('taskEnd').value,
-            priority: document.getElementById('taskPriority').value,
+            priority: assignedClass, // Guardamos el nombre del color (color-1, color-2, etc)
             progress: 0
         });
+        
+        document.getElementById('taskName').value = "";
     }
 
     function clearAll() {
@@ -140,3 +150,4 @@
 </script>
 </body>
 </html>
+
