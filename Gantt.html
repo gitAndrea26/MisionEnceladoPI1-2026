@@ -33,6 +33,21 @@
         .gantt .bar-wrapper {
             cursor: pointer;
         }
+
+        /* Forzamos que todas las filas tengan la misma altura */
+        .gantt .grid-row {
+            height: 60px !important;
+        }
+        
+        /* Alineamos la barra para que no quede pegada al techo de su fila */
+        .gantt .bar-wrapper {
+            transform: translateY(5px); /* Ajustá este número si la ves muy arriba o abajo */
+        }
+        
+        /* Espacio extra en el contenedor para que la primera no toque el borde */
+        .gantt-container {
+            padding-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -111,7 +126,7 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
-                padding: 0,
+                //padding: 0,
                 // --- NUEVA FUNCIÓN: ELIMINAR AL HACER CLIC ---
                 on_click: (task) => {
                     if(confirm(`¿Deseas eliminar la tarea: "${task.name}"?`)) {
@@ -176,6 +191,7 @@
 </script>
 </body>
 </html>
+
 
 
 
