@@ -107,6 +107,7 @@
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
                 view_mode: 'Week',
+                padding: 0,
                 on_date_change: (task, start, end) => {
                     db.ref("tasks/" + task.id).update({
                         start: start.toISOString().split('T')[0],
@@ -120,6 +121,29 @@
         } else {
             gantt.refresh(tasks);
         }
+    
+        // --- EL TRUCO MAESTRO: Pintado manual post-render ---
+        setTimeout(() => {
+            const colores = {
+                'color1': '#2ecc71', // Verde
+                'color2': '#ff9ff3', // Rosa
+                'color3': '#a29bfe', // Lila
+                'color4': '#81ecec', // Celeste
+                'color5': '#ffbe76', // Naranja
+                'color6': '#d4a373'  // Marrón
+            };
+    
+            tasks.forEach(t => {
+                // Buscamos el elemento de la barra por el ID de la tarea
+                const barWrapper = document.querySelector(`[data-id="${t.id}"]`);
+                if (barWrapper) {
+                    const rect = barWrapper.querySelector('.bar');
+                    if (rect && colores[t.custom_class]) {
+                        rect.style.fill = colores[t.custom_class];
+                    }
+                }
+            });
+        }, 100); // Esperamos 100ms a que el SVG se dibuje
     }
 
     function addTask() {
@@ -148,6 +172,7 @@
 </script>
 </body>
 </html>
+
 
 
 
