@@ -179,20 +179,37 @@
 
     async function moveTask(direction) {
         const id = document.getElementById('editId').value;
-        const tasksArray = Object.keys(allTasksData)
-            .map(k => ({ id: k, order: allTasksData[k].order || 0 }))
-            .sort((a, b) => a.order - b.order);
-
+        
+        // 1. Convertimos a array y nos aseguramos de que TODAS tengan un número de orden
+        // Si no tienen (porque son viejas), les asignamos su índice actual
+        const tasksArray = Object.keys(allTasksData).map((k, index) => ({
+            id: k,
+            order: allTasksData[k].order !== undefined ? allTasksData[k].order : index
+        })).sort((a, b) => a.order - b.order);
+    
         const currentIndex = tasksArray.findIndex(t => t.id === id);
         const newIndex = currentIndex + direction;
-
+    
         if (newIndex >= 0 && newIndex < tasksArray.length) {
             const currentTask = tasksArray[currentIndex];
             const siblingTask = tasksArray[newIndex];
+    
+            // 2. Intercambio de valores
+            const oldCurrentOrder = currentTask.order;
+            const oldSiblingOrder = siblingTask.order;
+    
             const updates = {};
-            updates[`/tasks/${currentTask.id}/order`] = siblingTask.order;
-            updates[`/tasks/${siblingTask.id}/order`] = currentTask.order;
-            await db.ref().update(updates);
+            updates[`/tasks/${currentTask.id}/order`] = oldSiblingOrder;
+            updates[`/tasks/${siblingTask.id}/order`] = oldCurrentOrder;
+    
+            try {
+                await db.ref().update(updates);
+                // Opcional: podrías cerrar el modal o dejarlo abierto
+                console.log("Movimiento exitoso");
+            } catch (error) {
+                console.error("Error al mover:", error);
+                alert("No se pudo mover la tarea.");
+            }
         }
     }
 
