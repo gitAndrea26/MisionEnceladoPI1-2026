@@ -179,13 +179,9 @@
 
     async function moveTask(direction) {
         const id = document.getElementById('editId').value;
-        
-        // 1. Convertimos a array y nos aseguramos de que TODAS tengan un número de orden
-        // Si no tienen (porque son viejas), les asignamos su índice actual
-        const tasksArray = Object.keys(allTasksData).map((k, index) => ({
-            id: k,
-            order: allTasksData[k].order !== undefined ? allTasksData[k].order : index
-        })).sort((a, b) => a.order - b.order);
+        const tasksArray = Object.keys(allTasksData).map(k => ({
+            id: k, ...allTasksData[k]
+        })).sort((a, b) => (a.order || 0) - (b.order || 0));
     
         const currentIndex = tasksArray.findIndex(t => t.id === id);
         const newIndex = currentIndex + direction;
@@ -193,23 +189,21 @@
         if (newIndex >= 0 && newIndex < tasksArray.length) {
             const currentTask = tasksArray[currentIndex];
             const siblingTask = tasksArray[newIndex];
+            
+            // Intercambiamos el orden
+            const oldOrder = currentTask.order;
+            currentTask.order = siblingTask.order;
+            siblingTask.order = oldOrder;
     
-            // 2. Intercambio de valores
-            const oldCurrentOrder = currentTask.order;
-            const oldSiblingOrder = siblingTask.order;
-    
+            // REASIGNAR COLORES según el nuevo orden de todo el array
             const updates = {};
-            updates[`/tasks/${currentTask.id}/order`] = oldSiblingOrder;
-            updates[`/tasks/${siblingTask.id}/order`] = oldCurrentOrder;
+            tasksArray.sort((a, b) => a.order - b.order).forEach((t, index) => {
+                const nextColor = "color" + ((index % 6) + 1);
+                updates[`/tasks/${t.id}/order`] = t.order;
+                updates[`/tasks/${t.id}/priority`] = nextColor; // Aquí refrescamos el color
+            });
     
-            try {
-                await db.ref().update(updates);
-                // Opcional: podrías cerrar el modal o dejarlo abierto
-                console.log("Movimiento exitoso");
-            } catch (error) {
-                console.error("Error al mover:", error);
-                alert("No se pudo mover la tarea.");
-            }
+            await db.ref().update(updates);
         }
     }
 
@@ -236,19 +230,40 @@
         const startStr = document.getElementById('taskStart').value;
         const duration = parseInt(document.getElementById('taskDuration').value);
         const slack = parseInt(document.getElementById('taskSlack').value) || 0;
-        if(!name || !startStr || isNaN(duration)) return alert("Completá los datos.");
-
+    
+        // Validación básica para evitar datos vacíos
+        if (!name || !startStr || isNaN(duration)) {
+            return alert("Por favor, completá todos los campos técnicos.");
+        }
+    
         const startDate = new Date(startStr + "T00:00:00");
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + duration + slack);
         
-        const count = Object.keys(allTasksData).length;
-        const nextColorNum = (count % 6) + 1;
-
+        // 1. Calculamos cuántas tareas hay para asignar el 'order' al final
+        const currentTasksArray = Object.values(allTasksData || {});
+        const totalTasks = currentTasksArray.length;
+        
+        // 2. Definimos el color según la posición (del 1 al 6)
+        const nextColorNum = (totalTasks % 6) + 1;
+        const priority = "color" + nextColorNum;
+    
+        // 3. Guardamos en Firebase con la estructura completa
         db.ref("tasks").push({ 
-            name, start: startStr, end: endDate.toISOString().split('T')[0], 
-            duration_days: duration, slack_days: slack, 
-            priority: "color" + nextColorNum, progress: 0, order: count 
+            name: name, 
+            start: startStr, 
+            end: endDate.toISOString().split('T')[0], 
+            duration_days: duration, 
+            slack_days: slack, 
+            priority: priority, 
+            progress: 0, 
+            order: totalTasks // La nueva tarea va al final
+        }).then(() => {
+            // Limpiamos los campos después de agregar con éxito
+            document.getElementById('taskName').value = "";
+            console.log("Tarea de la misión agregada correctamente.");
+        }).catch((error) => {
+            console.error("Error al guardar en Firebase:", error);
         });
     }
 
