@@ -18,13 +18,11 @@
         button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         .btn-delete { background: #dc3545; }
 
-        /* Estilos del Modal */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 10px; width: 300px; display: flex; flex-direction: column; gap: 15px; }
-        .modal-actions { display: flex; justify-content: space-between; gap: 10px; }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 10px; width: 320px; display: flex; flex-direction: column; gap: 15px; }
+        .modal-actions { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
-        .gantt .bar-wrapper { cursor: pointer; transform: translateY(5px); }
-        .gantt .grid-row { height: 50px !important; }
+        .gantt .bar-wrapper { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -39,7 +37,7 @@
         </div>
         <div class="grupo-input">
             <label>Inicio</label>
-            <input type="date" id="taskStart" value="2026-03-11">
+            <input type="date" id="taskStart" value="2026-03-18">
         </div>
         <div class="grupo-input">
             <label>Días Trabajo</label>
@@ -60,24 +58,29 @@
     <div class="modal-content">
         <h3>Editar Tarea</h3>
         
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button type="button" onclick="moveTask(-1)" style="flex: 1; background: #6c757d;">↑ Subir</button>
-            <button type="button" onclick="moveTask(1)" style="flex: 1; background: #6c757d;">↓ Bajar</button>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="moveTask(-1)" style="flex:1; background:#6c757d;">↑ Subir</button>
+            <button onclick="moveTask(1)" style="flex:1; background:#6c757d;">↓ Bajar</button>
         </div>
-        
-        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 15px;">
+        <hr style="width:100%">
 
         <input type="hidden" id="editId">
-        
         <div class="grupo-input">
             <label>Nombre</label>
             <input type="text" id="editName">
         </div>
-        
+        <div class="grupo-input">
+            <label>Días Trabajo</label>
+            <input type="number" id="editDuration">
+        </div>
+        <div class="grupo-input">
+            <label>Días Margen</label>
+            <input type="number" id="editSlack">
+        </div>
         <div class="modal-actions">
             <button onclick="saveEdit()">Guardar</button>
             <button class="btn-delete" onclick="deleteTask()">Eliminar</button>
-            <button style="background: #aaa;" onclick="closeModal()">Cerrar</button>
+            <button style="background: #6c757d;" onclick="closeModal()">Cerrar</button>
         </div>
     </div>
 </div>
@@ -96,24 +99,32 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     let gantt;
-    let currentTasksCount = 0;
-    let allTasksData = {}; // Para acceder rápido a los datos originales
+    let allTasksData = {}; 
 
     db.ref("tasks").on("value", (snapshot) => {
         const data = snapshot.val() || {};
         allTasksData = data;
         
-        // Convertimos el objeto de Firebase a una lista y la ORDENAMOS por el campo 'order'
         const tasks = Object.keys(data).map(k => ({
             id: k,
-            ...data[k]
-        })).sort((a, b) => (a.order || 0) - (b.order || 0));
+            name: data[k].name,
+            start: data[k].start,
+            end: data[k].end,
+            progress: data[k].progress || 0,
+            custom_class: data[k].priority,
+            order: data[k].order || 0,
+            duration_days: data[k].duration_days || 1,
+            slack_days: data[k].slack_days || 0
+        })).sort((a, b) => a.order - b.order);
     
-        currentTasksCount = tasks.length;
         renderGantt(tasks);
     });
 
     function renderGantt(tasks) {
+        if (tasks.length === 0) {
+            document.getElementById("gantt").innerHTML = "No hay tareas.";
+            return;
+        }
         if (!gantt) {
             gantt = new Gantt("#gantt", tasks, {
                 language: 'es',
@@ -155,18 +166,34 @@
         }, 100);
     }
 
-    // Funciones del Modal
     function openModal(task) {
         const original = allTasksData[task.id];
         document.getElementById('editId').value = task.id;
         document.getElementById('editName').value = original.name;
         document.getElementById('editDuration').value = original.duration_days;
-        document.getElementById('editSlack').value = original.slack_days;
+        document.getElementById('editSlack').value = original.slack_days || 0;
         document.getElementById('editModal').style.display = 'block';
     }
 
-    function closeModal() {
-        document.getElementById('editModal').style.display = 'none';
+    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function moveTask(direction) {
+        const id = document.getElementById('editId').value;
+        const tasksArray = Object.keys(allTasksData)
+            .map(k => ({ id: k, order: allTasksData[k].order || 0 }))
+            .sort((a, b) => a.order - b.order);
+
+        const currentIndex = tasksArray.findIndex(t => t.id === id);
+        const newIndex = currentIndex + direction;
+
+        if (newIndex >= 0 && newIndex < tasksArray.length) {
+            const currentTask = tasksArray[currentIndex];
+            const siblingTask = tasksArray[newIndex];
+            const updates = {};
+            updates[`/tasks/${currentTask.id}/order`] = siblingTask.order;
+            updates[`/tasks/${siblingTask.id}/order`] = currentTask.order;
+            await db.ref().update(updates);
+        }
     }
 
     function saveEdit() {
@@ -181,20 +208,10 @@
         endDate.setDate(startDate.getDate() + duration + slack);
 
         db.ref("tasks/" + id).update({
-            name: name,
-            duration_days: duration,
-            slack_days: slack,
+            name: name, duration_days: duration, slack_days: slack,
             end: endDate.toISOString().split('T')[0]
         });
         closeModal();
-    }
-
-    function deleteTask() {
-        const id = document.getElementById('editId').value;
-        if(confirm("¿Seguro que querés eliminar esta tarea?")) {
-            db.ref("tasks/" + id).remove();
-            closeModal();
-        }
     }
 
     function addTask() {
@@ -203,42 +220,31 @@
         const duration = parseInt(document.getElementById('taskDuration').value);
         const slack = parseInt(document.getElementById('taskSlack').value) || 0;
         if(!name || !startStr || isNaN(duration)) return alert("Completá los datos.");
+
         const startDate = new Date(startStr + "T00:00:00");
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + duration + slack);
-        const nextColorNum = (currentTasksCount % 6) + 1;
-        db.ref("tasks").push({ name, start: startStr, end: endDate.toISOString().split('T')[0], duration_days: duration, slack_days: slack, priority: "color" + nextColorNum, progress: 0 });
-        document.getElementById('taskName').value = ""; 
+        
+        const count = Object.keys(allTasksData).length;
+        const nextColorNum = (count % 6) + 1;
+
+        db.ref("tasks").push({ 
+            name, start: startStr, end: endDate.toISOString().split('T')[0], 
+            duration_days: duration, slack_days: slack, 
+            priority: "color" + nextColorNum, progress: 0, order: count 
+        });
+    }
+
+    function deleteTask() {
+        const id = document.getElementById('editId').value;
+        if(confirm("¿Eliminar?")) { db.ref("tasks/" + id).remove(); closeModal(); }
     }
 
     function clearAll() { if(confirm("¿Borrar todo?")) db.ref("tasks").remove(); }
 
-    async function moveTask(direction) {
-        const id = document.getElementById('editId').value;
-        // Obtenemos todas las tareas actuales ordenadas
-        const tasksArray = Object.keys(allTasksData)
-            .map(k => ({ id: k, order: allTasksData[k].order || 0 }))
-            .sort((a, b) => a.order - b.order);
-
-        const currentIndex = tasksArray.findIndex(t => t.id === id);
-        const newIndex = currentIndex + direction;
-
-        // Si el movimiento es posible (no se sale de la lista)
-        if (newIndex >= 0 && newIndex < tasksArray.length) {
-            const currentTask = tasksArray[currentIndex];
-            const siblingTask = tasksArray[newIndex];
-
-            const updates = {};
-            // Intercambiamos los valores de 'order' entre las dos tareas
-            updates[`/tasks/${currentTask.id}/order`] = siblingTask.order;
-            updates[`/tasks/${siblingTask.id}/order`] = currentTask.order;
-
-            await db.ref().update(updates);
-        }
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('editModal')) closeModal();
     }
 </script>
 </body>
 </html>
-
-
-
